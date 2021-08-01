@@ -21,6 +21,7 @@ filepath = 'checkpoint.pth'
 topk = 5
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+model = models.vgg16_bn(pretrained=True)
 
 def load_checkpoint(filepath):
     checkpoint = torch.load(filepath)
@@ -66,6 +67,6 @@ def predict(image_path, model, device, topk=5):
         model.train()
     return list_ps, classes
 
-probs, classes = predict (image_path)
+probs, classes = predict (image_path, model)
 print(probs)
 print(classes)

@@ -51,12 +51,12 @@ for param in model.parameters():
     param.requires_grad = False
     
 classifier = nn.Sequential(OrderedDict([
-                            ('fc1', nn.Linear(25088,4096)),
-                            ('relu', nn.ReLU()),
-                            ('dropout', nn.Dropout(0.5)),
-                            ('fc2', nn.Linear(4096,102)),
-                            ('output', nn.LogSoftmax(dim=1))
-                          ]))
+            ('fc1', nn.Linear(25088,4096)),
+            ('relu', nn.ReLU()),
+            ('dropout', nn.Dropout(0.5)),
+            ('fc2', nn.Linear(4096,102)),
+            ('output', nn.LogSoftmax(dim=1))
+             ]))
 
 model.classifier = classifier
 model.to(device)
@@ -64,8 +64,7 @@ model.to(device)
 criterion = nn.NLLLoss()
 optimizer = optim.Adam(model.classifier.parameters(), lr=0.001)
 
-
-epochs = 1
+epochs = 1    
 
 train_losses, valid_losses = [], []
 
@@ -122,11 +121,12 @@ for epoch in range(epochs):
                 f"Test accuracy: {accuracy/len(valid_dataloaders):.3f}")
 
 def save_checkpoint(model, image_datasets_train, path='checkpoint.pth'):
-    checkpoint = {'arch':model.name,
-             'state_dict': model.state_dict(),
+    checkpoint = {'state_dict': model.state_dict(),
              'optimizer': optimizer.state_dict(),
              'classifier': model.classifier,
-             'ephocs': ephocs,
+             'epochs': epochs,
              'learning_rate': 0.001, 
              'class_to_idx':image_datasets_train.class_to_idx}
-    return torch.save(checkpoint, path)   
+    return torch.save(checkpoint, path)  
+
+checkpoint = save_checkpoint(model, image_datasets_train)
