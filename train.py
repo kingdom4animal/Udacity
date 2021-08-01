@@ -50,7 +50,7 @@ model = models.vgg16_bn(pretrained=True)
 for param in model.parameters():
     param.requires_grad = False
     
-model.classifier = nn.Sequential(OrderedDict([
+classifier = nn.Sequential(OrderedDict([
                             ('fc1', nn.Linear(25088,4096)),
                             ('relu', nn.ReLU()),
                             ('dropout', nn.Dropout(0.5)),
@@ -58,6 +58,7 @@ model.classifier = nn.Sequential(OrderedDict([
                             ('output', nn.LogSoftmax(dim=1))
                           ]))
 
+model.classifier = classifier
 model.to(device)
 
 criterion = nn.NLLLoss()
@@ -119,14 +120,13 @@ for epoch in range(epochs):
                 # validation loss & accuracy across the entire dataset
                 f"Test loss: {test_loss/len(valid_dataloaders):.3f}.. "
                 f"Test accuracy: {accuracy/len(valid_dataloaders):.3f}")
-        
-model.to(device)
 
-model.class_to_idx = image_datasets_train.class_to_idx
-
-checkpoint = {'arch':'vgg16_bn',
+def save_checkpoint(model, image_datasets_train, path='checkpoint.pth'):
+    checkpoint = {'arch':model.name,
              'state_dict': model.state_dict(),
-             'class_to_idx':model.class_to_idx}
-
-
-torch.save(checkpoint, 'checkpoint.pth')
+             'optimizer': optimizer.state_dict(),
+             'classifier': model.classifier,
+             'ephocs': ephocs,
+             'learning_rate': 0.001, 
+             'class_to_idx':image_datasets_train.class_to_idx}
+    return torch.save(checkpoint, path)   

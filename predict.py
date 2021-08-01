@@ -2,6 +2,7 @@ import argparse
 parser = argparse.ArgumentParser(description ='predict')
 #parser.add_argument('filepath')
 parser.add_argument('image_path')
+parser.add_argument('model')
 #parser.add_argument('topk')
 args = parser.parse_args()
 
@@ -18,19 +19,20 @@ import json
 #image_path = './flowers/test/99/image_07833.jpg'
 filepath = 'checkpoint.pth'
 topk = 5
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 def load_checkpoint(filepath):
     checkpoint = torch.load(filepath)
-    model.classifier = nn.Sequential(OrderedDict([
-                            ('fc1', nn.Linear(25088,4096)),
-                            ('relu', nn.ReLU()),
-                            ('dropout', nn.Dropout(0.5)),
-                            ('fc2', nn.Linear(4096,102)),
-                            ('output', nn.LogSoftmax(dim=1))
-                          ]))
+    model.classifier = checkpoint['classifier']
     model.load_state_dict(checkpoint['state_dict'])
+    model.epochs = checkpoint['epochs']
     model.class_to_idx = checkpoint['class_to_idx']
-    
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    learning_rate = checkpoint['learning_rate']
     return model
+
+model = load_checkpoint(filepath)
 
 def process_image(image_path):
     pic = Image.open(image_path)
@@ -39,17 +41,17 @@ def process_image(image_path):
         transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406]
-                             [0.229, 0.224, 0.225])
+                             [0.229, 0.224, 0.225])])
     pic_trans = transform(pic)
     pic_to_array = np.array(pic_trans)
-    return pic_to array
+    return pic_to_array
 
-def predict(filepath, image_path, topk):
-    model = load_checkpoint(filepath)
-
+def predict(image_path, model, device, topk=5):
     pic = process_image(image_path)
     pic = torch.from_numpy(pic).type(torch.FloatTensor)
     pic=pic.unsqueeze_(0)
+    model = load_checkpoint(model)
+    model.to(device)
     model.eval()
     with torch.no_grad():
         log_ps = model.forward(pic)
@@ -64,6 +66,6 @@ def predict(filepath, image_path, topk):
         model.train()
     return list_ps, classes
 
-probs, classes = predict (filepath,image_path, topk)
+probs, classes = predict (image_path)
 print(probs)
 print(classes)
