@@ -59,25 +59,20 @@ classifier = nn.Sequential(OrderedDict([
              ]))
 
 model.classifier = classifier
-model.to(device)
 
 criterion = nn.NLLLoss()
 optimizer = optim.Adam(model.classifier.parameters(), lr=0.001)
 
+model.to(device)
+
 epochs = 1    
-
 train_losses, valid_losses = [], []
-
 for epoch in range(epochs):
     running_loss = 0
     for images, labels in train_dataloaders:
-       
-     
         images, labels = images.to(device), labels.to(device)
-        
         optimizer.zero_grad()
-       
-        logps = model.forward(images)
+        logps = model(images)
         loss = criterion(logps, labels)
         loss.backward()
         optimizer.step()
@@ -87,32 +82,24 @@ for epoch in range(epochs):
     else:
         test_loss = 0
         accuracy = 0
-            
-    
         with torch.no_grad():
         
             model.eval()
             
             for images, labels in valid_dataloaders:
                 images, labels = images.to(device), labels.to(device)
-               
                 logps = model.forward(images)
                 test_loss += criterion(logps, labels)
-          
                 ps = torch.exp(logps)
-
                 top_p, top_class = ps.topk(1, dim=1)
-
-
                 equals = top_class == labels.view(*top_class.shape)
 
                 accuracy += torch.mean(equals.type(torch.FloatTensor)).item()
              
         model.train() 
-            
         train_losses.append(running_loss/len(train_dataloaders))
         valid_losses.append(test_loss/len(valid_dataloaders))
-            
+        
         print(f"Epoch {epoch+1}/{epochs}.. "
                 # average of training loss over the last print_every batches
                 f"Train loss: {running_loss/len(train_dataloaders):.3f}.. "

@@ -22,8 +22,22 @@ topk = 5
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model = models.vgg16_bn(pretrained=True)
+classifier = nn.Sequential(OrderedDict([
+            ('fc1', nn.Linear(25088,4096)),
+            ('relu', nn.ReLU()),
+            ('dropout', nn.Dropout(0.5)),
+            ('fc2', nn.Linear(4096,102)),
+            ('output', nn.LogSoftmax(dim=1))
+             ]))
 
-def load_checkpoint(filepath):
+model.classifier = classifier
+
+criterion = nn.NLLLoss()
+optimizer = optim.Adam(model.classifier.parameters(), lr=0.001)
+
+model.to(device)
+
+def load_checkpoint(filepath, model):
     checkpoint = torch.load(filepath)
     model.classifier = checkpoint['classifier']
     model.load_state_dict(checkpoint['state_dict'])
@@ -33,7 +47,7 @@ def load_checkpoint(filepath):
     learning_rate = checkpoint['learning_rate']
     return model
 
-model = load_checkpoint(filepath)
+model = load_checkpoint(filepath, model)
 
 def process_image(image_path):
     pic = Image.open(image_path)
@@ -47,17 +61,16 @@ def process_image(image_path):
     pic_to_array = np.array(pic_trans)
     return pic_to_array
 
-def predict(image_path, model, device, topk=5):
+def predict(image_path, model):
     pic = process_image(image_path)
     pic = torch.from_numpy(pic).type(torch.FloatTensor)
     pic=pic.unsqueeze_(0)
-    model = load_checkpoint(model)
     model.to(device)
     model.eval()
     with torch.no_grad():
         log_ps = model.forward(pic)
         ps = torch.exp(log_ps)
-        top_ps,top_idx = ps.topk(topk,dim=1)
+        top_ps,top_idx = ps.topk(topk=5,dim=1)
         list_ps = top_ps.tolist()[0]
         list_idx = top_idx.tolist()[0]
         index_mapping=dict(map(reversed, model.class_to_idx.items()))
@@ -67,6 +80,6 @@ def predict(image_path, model, device, topk=5):
         model.train()
     return list_ps, classes
 
-probs, classes = predict (image_path, model)
+probs, classes = predict (image_path,model)
 print(probs)
 print(classes)
