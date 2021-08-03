@@ -1,7 +1,7 @@
 import argparse
 parser = argparse.ArgumentParser(description ='predict')
 #parser.add_argument('filepath')
-parser.add_argument('image_path')
+#parser.add_argument('image_path')
 parser.add_argument('model')
 #parser.add_argument('topk')
 args = parser.parse_args()
@@ -16,7 +16,7 @@ from PIL import Image
 import numpy as np
 
 import json
-#image_path = './flowers/test/99/image_07833.jpg'
+image_path = './flowers/test/99/image_07833.jpg'
 filepath = 'checkpoint.pth'
 topk = 5
 
@@ -55,16 +55,18 @@ def process_image(image_path):
         transforms.Resize(224),
         transforms.CenterCrop(224),
         transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406]
-                             [0.229, 0.224, 0.225])])
+        transforms.Normalize([0.485, 0.456, 0.406],
+                             [0.229, 0.224, 0.225])
+                        ])
     pic_trans = transform(pic)
     pic_to_array = np.array(pic_trans)
     return pic_to_array
 
-def predict(image_path, model):
+def predict(model):
     pic = process_image(image_path)
-    pic = torch.from_numpy(pic).type(torch.FloatTensor)
+    pic= torch.from_numpy(pic).type(torch.FloatTensor)
     pic=pic.unsqueeze_(0)
+    pic.to(device)
     model.to(device)
     model.eval()
     with torch.no_grad():
@@ -80,6 +82,6 @@ def predict(image_path, model):
         model.train()
     return list_ps, classes
 
-probs, classes = predict (image_path,model)
+probs, classes = predict (model)
 print(probs)
 print(classes)
