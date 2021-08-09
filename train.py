@@ -1,7 +1,21 @@
 import argparse
 parser = argparse.ArgumentParser(description ='train')
 parser.add_argument("data_dir")
+parser.add_argument("learning_rate", type=float)
+parser.add_argument("epochs", type=int)
+parser.add_argument("model_arch", choices=['vgg16_bn', 'densnet121'])
+parser.add_argument("hidden_layer1", type=int)
+parser.add_argument("device", choices=['cuda', 'cpu'])
+
 args = parser.parse_args()
+lr=args.learning_rate
+epochs=args.epochs
+structure=args.model_arch
+hidden_layer1=args.hidden_layer1
+device=args.device
+
+# cd ImageClassifier/
+# python train.py data_dir 0.001 1 'vgg16_bn' 4096 'gpu'
 
 import torch
 from torch import nn, optim
@@ -39,38 +53,41 @@ image_datasets_valid = datasets.ImageFolder(valid_dir,transforms_test)
 train_dataloaders = torch.utils.data.DataLoader(image_datasets_train, batch_size=64, shuffle=True)
 valid_dataloaders = torch.utils.data.DataLoader(image_datasets_valid, batch_size=64)
 
-with open('cat_to_name.json', 'r') as f:
-    cat_to_name = json.load(f)
+#device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-model = models.vgg16_bn(pretrained=True)
+model_arch = {'vgg16_bn':25088, 'densnet121':1024}
+if structure == 'vgg16_bn':
+    model = models.vgg16_bn(pretrained=True)
+    model.name = 'vgg16_bn'
+elif structure == 'densnet121':
+    model = models.densnet121(pretrained=True)
+    model.name = 'densnet121'
 
 for param in model.parameters():
     param.requires_grad = False
     
 classifier = nn.Sequential(OrderedDict([
-            ('fc1', nn.Linear(25088,4096)),
+            ('fc1', nn.Linear(model_arch[structure],hidden_layer1)),
             ('relu', nn.ReLU()),
             ('dropout', nn.Dropout(0.5)),
-            ('fc2', nn.Linear(4096,102)),
+            ('fc2', nn.Linear(hidden_layer1,102)),
             ('output', nn.LogSoftmax(dim=1))
              ]))
 
 model.classifier = classifier
 
 criterion = nn.NLLLoss()
-optimizer = optim.Adam(model.classifier.parameters(), lr=0.001)
+optimizer = optim.Adam(model.classifier.parameters(), lr)
 
-model.to(device)
-
-epochs = 1    
+if torch.cuda.is_available() and device =='cuda':
+    model.to(device) # to device
+   
 train_losses, valid_losses = [], []
 for epoch in range(epochs):
     running_loss = 0
     for images, labels in train_dataloaders:
-        images, labels = images.to(device), labels.to(device)
+        if torch.cuda.is_available() and device =='cuda':                             
+            images, labels = images.to(device), labels.to(device) # to device
         optimizer.zero_grad()
         logps = model(images)
         loss = criterion(logps, labels)
@@ -87,7 +104,8 @@ for epoch in range(epochs):
             model.eval()
             
             for images, labels in valid_dataloaders:
-                images, labels = images.to(device), labels.to(device)
+                if torch.cuda.is_available() and device =='cuda':                      
+                    images, labels = images.to(device), labels.to(device) # to device
                 logps = model.forward(images)
                 test_loss += criterion(logps, labels)
                 ps = torch.exp(logps)
@@ -108,11 +126,12 @@ for epoch in range(epochs):
                 f"Test accuracy: {accuracy/len(valid_dataloaders):.3f}")
 
 def save_checkpoint(model, image_datasets_train, path='checkpoint.pth'):
-    checkpoint = {'state_dict': model.state_dict(),
+    checkpoint = {'hidden_layer1':hidden_layer1,
+            'state_dict': model.state_dict(),
              'optimizer': optimizer.state_dict(),
              'classifier': model.classifier,
              'epochs': epochs,
-             'learning_rate': 0.001, 
+             'learning_rate': lr, 
              'class_to_idx':image_datasets_train.class_to_idx}
     return torch.save(checkpoint, path)  
 
